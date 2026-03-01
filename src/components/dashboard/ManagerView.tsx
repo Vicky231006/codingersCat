@@ -3,8 +3,9 @@ import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store';
 import { calculateBurnoutRisk, calculatePerformanceScore } from '@/lib/analytics';
 import { ProjectTaskManagement } from './ProjectTaskManagement';
+import { ReviewModal } from './ReviewModal';
 import { formatDistanceToNow, parseISO } from 'date-fns';
-import { CheckCircle2, Zap, ListTodo, AlertTriangle, UserPlus, X } from 'lucide-react';
+import { CheckCircle2, Zap, ListTodo, AlertTriangle, UserPlus, X, Target, MessageSquare, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // ── Assign Task Modal ─────────────────────────────────────────────────────────
@@ -22,6 +23,7 @@ function AssignTaskModal({ onClose }: { onClose: () => void }) {
         startDate: new Date().toISOString().split('T')[0],
         endDate: new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0],
         type: 'Task',
+        kpis: [] as Array<{ name: string; points: number }>,
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -39,8 +41,19 @@ function AssignTaskModal({ onClose }: { onClose: () => void }) {
             completedDate: null,
             qualityIndicator: 80,
             dependencies: [],
+            kpis: form.kpis
         });
         onClose();
+    };
+
+    const addKpi = () => {
+        setForm(prev => ({ ...prev, kpis: [...prev.kpis, { name: '', points: 5 }] }));
+    };
+
+    const updateKpi = (idx: number, field: 'name' | 'points', value: any) => {
+        const newKpis = [...form.kpis];
+        (newKpis[idx] as any)[field] = value;
+        setForm(prev => ({ ...prev, kpis: newKpis }));
     };
 
     const fieldClass = "w-full bg-white/5 border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[var(--color-primary)] transition-colors";
@@ -125,6 +138,33 @@ function AssignTaskModal({ onClose }: { onClose: () => void }) {
                         <div className="flex justify-between text-[10px] text-gray-600 mt-0.5"><span>Simple</span><span>Complex</span></div>
                     </div>
 
+                    <div className="space-y-3 pt-2 border-t border-white/10">
+                        <div className="flex items-center justify-between">
+                            <label className={labelClass}>Task KPIs</label>
+                            <button type="button" onClick={addKpi} className="text-[10px] text-[var(--color-primary)] hover:underline">+ Add KPI</button>
+                        </div>
+                        {form.kpis.map((kpi, idx) => (
+                            <div key={idx} className="flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="KPI Name (e.g. Precision)"
+                                    value={kpi.name}
+                                    onChange={e => updateKpi(idx, 'name', e.target.value)}
+                                    className="flex-[3] bg-white/5 border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+                                />
+                                <div className="flex-[1] flex items-center gap-2 bg-white/5 border border-[var(--color-border)] rounded-lg px-2">
+                                    <input
+                                        type="number"
+                                        value={kpi.points}
+                                        onChange={e => updateKpi(idx, 'points', Number(e.target.value))}
+                                        className="w-full bg-transparent text-center text-sm text-white focus:outline-none"
+                                    />
+                                    <span className="text-[10px] text-gray-500 uppercase font-bold shrink-0">pts</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
                     {wsProjects.length === 0 && (
                         <p className="text-xs text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-3 py-2">
                             ⚠ No projects found. Create a project first from the Projects tab.
@@ -145,6 +185,7 @@ function AssignTaskModal({ onClose }: { onClose: () => void }) {
 export function ManagerView() {
     const { employees, tasks, projects, activityLogs, activeWorkspaceId, fetchSupabaseTasks } = useAppStore();
     const [showAssignModal, setShowAssignModal] = useState(false);
+    const [reviewTask, setReviewTask] = useState<any>(null);
 
     useEffect(() => {
         if (activeWorkspaceId) {
@@ -179,6 +220,13 @@ export function ManagerView() {
         <>
             <AnimatePresence>
                 {showAssignModal && <AssignTaskModal onClose={() => setShowAssignModal(false)} />}
+                {reviewTask && (
+                    <ReviewModal
+                        task={reviewTask}
+                        isOpen={!!reviewTask}
+                        onClose={() => setReviewTask(null)}
+                    />
+                )}
             </AnimatePresence>
 
             <div className="flex flex-col gap-5 h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar pr-2 pb-4">
@@ -212,6 +260,47 @@ export function ManagerView() {
                         </div>
                     ))}
                 </div>
+
+                {/* ── Pending Reviews ── */}
+                {tasks.filter(t => t.status === 'Review' && projects.find(p => p.id === t.projectId)?.workspaceId === activeWorkspaceId).length > 0 && (
+                    <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-5">
+                        <h3 className="font-bold text-sm text-yellow-500 flex items-center gap-2 mb-4">
+                            <Clock className="w-4 h-4" /> Pending Reviews
+                        </h3>
+                        <div className="space-y-3">
+                            {tasks.filter(t => t.status === 'Review' && projects.find(p => p.id === t.projectId)?.workspaceId === activeWorkspaceId).map(task => {
+                                const emp = employees.find(e => e.id === task.assigneeId);
+                                return (
+                                    <div key={task.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center text-xs font-bold text-yellow-500">
+                                                {emp?.name[0] || '?'}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-semibold">{task.title}</p>
+                                                <p className="text-[10px] text-gray-500">Submitted by {emp?.name || 'Unknown'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            {task.submissionNotes && (
+                                                <div className="hidden md:flex items-center gap-1.5 text-xs text-gray-400 max-w-[200px] italic">
+                                                    <MessageSquare className="w-3 h-3 shrink-0" />
+                                                    <span className="truncate">{task.submissionNotes}</span>
+                                                </div>
+                                            )}
+                                            <button
+                                                onClick={() => setReviewTask(task)}
+                                                className="text-[10px] bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-lg font-bold border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors"
+                                            >
+                                                Review Submission
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
 
                 {/* ── Main 3-col grid ── */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 flex-1">

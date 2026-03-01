@@ -6,7 +6,7 @@ import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import {
     CheckCircle2, Clock, AlertCircle, ChevronRight, Upload,
     X, FileText, Calendar, User, Tag, Layers,
-    Paperclip, Send, MoreHorizontal, Eye, ArrowLeft
+    Paperclip, Send, MoreHorizontal, Eye, ArrowLeft, Target, Award
 } from "lucide-react";
 import { formatDistanceToNow, parseISO, isPast } from "date-fns";
 
@@ -49,8 +49,8 @@ function TaskDetailPanel({
 }) {
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [isDragging, setIsDragging] = useState(false);
-    const [note, setNote] = useState("");
-    const [submitted, setSubmitted] = useState(false);
+    const [note, setNote] = useState(task.submissionNotes || "");
+    const [submitted, setSubmitted] = useState(task.status === "Review");
     const fileRef = useRef<HTMLInputElement>(null);
     const { updateTask } = useAppStore();
 
@@ -69,7 +69,11 @@ function TaskDetailPanel({
 
     const handleSubmit = () => {
         if (submissions.length === 0 && !note.trim()) return;
-        updateTask(task.id, { status: "Review" });
+        updateTask(task.id, {
+            status: "Review",
+            submissionNotes: note,
+            submissionAttachments: submissions.map(s => s.fileName)
+        });
         setSubmitted(true);
     };
 
@@ -140,6 +144,48 @@ function TaskDetailPanel({
                         <p>• Status auto-updates to <span className="text-yellow-400 font-medium">Review</span> upon submission.</p>
                     </div>
                 </div>
+
+                {/* KPI Display */}
+                {task.kpis && task.kpis.length > 0 && (
+                    <div className="p-5 border-b border-[var(--color-border)]">
+                        <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+                            <Target className="w-4 h-4 text-emerald-400" /> Target KPIs
+                        </h3>
+                        <div className="space-y-3">
+                            {task.kpis.map((kpi: any, idx: number) => {
+                                const scorePct = kpi.score !== undefined ? (kpi.score / kpi.points) * 100 : 0;
+                                return (
+                                    <div key={idx} className="bg-white/4 rounded-xl p-3 border border-white/5">
+                                        <div className="flex justify-between items-center mb-1.5">
+                                            <span className="text-xs font-medium text-gray-200">{kpi.name}</span>
+                                            <span className="text-[10px] font-bold text-gray-500 uppercase">
+                                                {isDone ? `${kpi.score} / ${kpi.points} pts` : `${kpi.points} pts`}
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-black/40 h-1 rounded-full overflow-hidden">
+                                            <div
+                                                className={`h-full transition-all duration-500 ${isDone ? 'bg-emerald-500' : 'bg-[var(--color-primary)]'}`}
+                                                style={{ width: isDone ? `${scorePct}%` : '0%' }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* Manager Feedback */}
+                {isDone && task.managerFeedback && (
+                    <div className="p-5 border-b border-[var(--color-border)] bg-blue-500/5">
+                        <h3 className="text-sm font-semibold text-blue-400 mb-2 flex items-center gap-2">
+                            <Award className="w-4 h-4" /> Manager Assessment
+                        </h3>
+                        <p className="text-sm text-gray-300 italic leading-relaxed">
+                            "{task.managerFeedback}"
+                        </p>
+                    </div>
+                )}
 
                 {/* Deadline banner */}
                 <div className={`mx-5 mt-4 rounded-xl p-3 flex items-center gap-3 border ${isOverdue ? "bg-red-500/10 border-red-500/20" :

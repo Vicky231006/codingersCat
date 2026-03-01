@@ -63,6 +63,10 @@ export type Task = {
     completedDate: string | null;
     qualityIndicator: number;
     dependencies: string[];
+    kpis?: Array<{ name: string; points: number; score?: number }>;
+    submissionNotes?: string;
+    submissionAttachments?: string[];
+    managerFeedback?: string;
 };
 
 export type ActivityLog = {
@@ -241,7 +245,11 @@ export const useAppStore = create<AppState>()(
                         start_date: task.startDate,
                         end_date: task.endDate,
                         completed_date: task.completedDate,
-                        quality_indicator: task.qualityIndicator
+                        quality_indicator: task.qualityIndicator,
+                        kpis: task.kpis,
+                        submission_notes: task.submissionNotes,
+                        submission_attachments: task.submissionAttachments || [],
+                        manager_feedback: task.managerFeedback
                     });
                 }
             },
@@ -268,6 +276,10 @@ export const useAppStore = create<AppState>()(
                 if (data.endDate !== undefined) updatePayload.end_date = data.endDate;
                 if (data.completedDate !== undefined) updatePayload.completed_date = data.completedDate;
                 if (data.qualityIndicator !== undefined) updatePayload.quality_indicator = data.qualityIndicator;
+                if (data.kpis !== undefined) updatePayload.kpis = data.kpis;
+                if (data.submissionNotes !== undefined) updatePayload.submission_notes = data.submissionNotes;
+                if (data.submissionAttachments !== undefined) updatePayload.submission_attachments = data.submissionAttachments;
+                if (data.managerFeedback !== undefined) updatePayload.manager_feedback = data.managerFeedback;
 
                 if (Object.keys(updatePayload).length > 0) {
                     await supabase.from('tasks').update(updatePayload).eq('id', id);
@@ -311,6 +323,10 @@ export const useAppStore = create<AppState>()(
                             endDate: t.end_date,
                             completedDate: t.completed_date,
                             qualityIndicator: t.quality_indicator,
+                            kpis: t.kpis,
+                            submissionNotes: t.submission_notes,
+                            submissionAttachments: t.submission_attachments || [],
+                            managerFeedback: t.manager_feedback,
                             dependencies: []
                         }));
 

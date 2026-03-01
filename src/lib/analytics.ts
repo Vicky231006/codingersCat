@@ -57,6 +57,8 @@ export function calculatePerformanceScore(employee: Employee, tasks: Task[]): { 
     let onTimeTasks = 0;
     let totalWeight = 0;
     let qualitySum = 0;
+    let kpiScoreSum = 0;
+    let kpiPossibleSum = 0;
 
     employeeTasks.forEach(t => {
         totalWeight += t.weight;
@@ -64,6 +66,17 @@ export function calculatePerformanceScore(employee: Employee, tasks: Task[]): { 
 
         if (t.completedDate && isBefore(parseISO(t.completedDate), parseISO(t.endDate)) || t.completedDate === t.endDate) {
             onTimeTasks++;
+        }
+
+        if (t.kpis && t.kpis.length > 0) {
+            t.kpis.forEach(k => {
+                kpiPossibleSum += k.points;
+                kpiScoreSum += k.score || 0;
+            });
+        } else {
+            // Default if no KPIs defined: use qualityIndicator as proxy
+            kpiPossibleSum += 100;
+            kpiScoreSum += t.qualityIndicator || 100;
         }
     });
 
@@ -73,14 +86,17 @@ export function calculatePerformanceScore(employee: Employee, tasks: Task[]): { 
     const avgQuality = qualitySum / totalWeight;
     log.push(`Weighted Quality Indicator: ${avgQuality.toFixed(0)}%`);
 
+    const kpiPerformance = kpiPossibleSum > 0 ? kpiScoreSum / kpiPossibleSum : 1;
+    log.push(`KPI Achievement Rate: ${(kpiPerformance * 100).toFixed(0)}%`);
+
     // Workload Balance Index
     const allTasksCount = tasks.filter(t => t.assigneeId === employee.id).length;
     const balanceIndex = Math.min(allTasksCount / 10, 1); // Mock index
     log.push(`Workload Balance Index: ${balanceIndex.toFixed(2)}`);
 
     // Final score out of 100
-    // 50% adherence + 40% quality + 10% balance
-    const finalScore = (deadlineAdherence * 50) + ((avgQuality / 100) * 40) + (balanceIndex * 10);
+    // 40% adherence + 40% KPI + 10% quality + 10% balance
+    const finalScore = (deadlineAdherence * 40) + (kpiPerformance * 40) + ((avgQuality / 100) * 10) + (balanceIndex * 10);
 
     return { score: Math.min(Math.round(finalScore), 100), log };
 }

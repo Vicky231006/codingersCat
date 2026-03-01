@@ -107,3 +107,37 @@ create trigger prevent_role_escalation
   before update on public.users
   for each row
   execute procedure public.check_role_escalation();
+
+-- 7. Unify Supabase Tasks Table (V3 - with KPI support)
+-- Drop the pre-existing tasks table to ensure clean UUID type alignment (JS standard)
+drop table if exists public.tasks cascade;
+
+create table public.tasks (
+  id uuid primary key,
+  workspace_id text not null,
+  project_id text,
+  title text not null,
+  type text default 'Task',
+  assignee_id text,             -- 'text' allows for CSV-generated arbitrary UUIDs
+  status text default 'To Do',
+  weight integer default 5,
+  start_date text,
+  end_date text,
+  completed_date text,
+  quality_indicator integer default 100,
+  -- New KPI & Feedback fields
+  kpis jsonb default '[]'::jsonb,
+  submission_notes text,
+  submission_attachments jsonb default '[]'::jsonb,
+  manager_feedback text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS
+alter table public.tasks enable row level security;
+
+-- Simplified Policies for Demo Sync
+create policy "Anyone can view tasks" on public.tasks for select using ( true );
+create policy "Anyone can insert tasks" on public.tasks for insert with check ( true );
+create policy "Anyone can update tasks" on public.tasks for update using ( true );
+create policy "Anyone can delete tasks" on public.tasks for delete using ( true );

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { useAppStore, Project, Task } from '@/store';
-import { Plus, GitCommit, Calendar, User, AlignLeft, X, MoreVertical, Edit, Trash, FolderOpen, ArrowLeft } from 'lucide-react';
+import { Plus, GitCommit, Calendar, User, AlignLeft, X, MoreVertical, Edit, Trash, FolderOpen, ArrowLeft, Target, Award, CheckCircle2 as CheckCircle } from 'lucide-react';
 import { format, differenceInDays, parseISO, isAfter, isBefore } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -20,7 +20,9 @@ export function ProjectTaskManagement() {
     const [newProject, setNewProject] = useState({ id: '', name: '', description: '', startDate: '', endDate: '' });
     const [newTask, setNewTask] = useState({
         id: '', projectId: '', title: '', type: 'Feature', assigneeId: '',
-        status: 'To Do', weight: 5, startDate: '', endDate: '', dependencies: [] as string[]
+        status: 'To Do', weight: 5, startDate: '', endDate: '', dependencies: [] as string[],
+        kpis: [] as Array<{ name: string; points: number; score?: number }>,
+        managerFeedback: ''
     });
 
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, type: 'project' | 'task' } | null>(null);
@@ -68,7 +70,9 @@ export function ProjectTaskManagement() {
                 weight: Number(newTask.weight),
                 startDate: newTask.startDate,
                 endDate: newTask.endDate,
-                dependencies: newTask.dependencies
+                dependencies: newTask.dependencies,
+                kpis: newTask.kpis,
+                managerFeedback: newTask.managerFeedback
             });
         } else {
             addTask({
@@ -82,11 +86,13 @@ export function ProjectTaskManagement() {
                 endDate: newTask.endDate || new Date(Date.now() + 86400000 * 3).toISOString(),
                 completedDate: null,
                 qualityIndicator: 100,
-                dependencies: newTask.dependencies
+                dependencies: newTask.dependencies,
+                kpis: newTask.kpis,
+                managerFeedback: ''
             });
         }
         setTaskModalOpen(false);
-        setNewTask({ id: '', projectId: '', title: '', type: 'Feature', assigneeId: '', status: 'To Do', weight: 5, startDate: '', endDate: '', dependencies: [] });
+        setNewTask({ id: '', projectId: '', title: '', type: 'Feature', assigneeId: '', status: 'To Do', weight: 5, startDate: '', endDate: '', dependencies: [], kpis: [], managerFeedback: '' });
     };
 
     const handleDelete = () => {
@@ -262,7 +268,9 @@ export function ProjectTaskManagement() {
                                                 weight: t.weight,
                                                 startDate: t.startDate.substring(0, 10),
                                                 endDate: t.endDate.substring(0, 10),
-                                                dependencies: t.dependencies
+                                                dependencies: t.dependencies,
+                                                kpis: t.kpis || [],
+                                                managerFeedback: t.managerFeedback || ''
                                             });
                                             setTaskModalOpen(true);
                                         }} className="text-gray-400 hover:text-white transition-colors p-1"><Edit className="w-3 h-3" /></button>
@@ -310,7 +318,7 @@ export function ProjectTaskManagement() {
                         </button>
                     )}
                     {selectedProjectId && (
-                        <button onClick={() => { setNewTask({ id: '', projectId: selectedProjectId, title: '', type: 'Feature', assigneeId: '', status: 'To Do', weight: 5, startDate: '', endDate: '', dependencies: [] }); setTaskModalOpen(true); }} className="flex items-center gap-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/80 text-white px-4 py-2 rounded-lg text-sm transition-colors shadow-sm">
+                        <button onClick={() => { setNewTask({ id: '', projectId: selectedProjectId, title: '', type: 'Feature', assigneeId: '', status: 'To Do', weight: 5, startDate: '', endDate: '', dependencies: [], kpis: [], managerFeedback: '' }); setTaskModalOpen(true); }} className="flex items-center gap-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/80 text-white px-4 py-2 rounded-lg text-sm transition-colors shadow-sm">
                             <Plus className="w-4 h-4" /> New Task
                         </button>
                     )}
@@ -437,6 +445,92 @@ export function ProjectTaskManagement() {
                                             {newTask.projectId && currentTasks.filter(t => t.projectId === newTask.projectId && t.id !== newTask.id).length === 0 && <span className="text-gray-500">No other tasks to depend on.</span>}
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* KPI Section */}
+                                <div className="p-4 bg-white/5 border border-white/10 rounded-xl space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-sm font-bold flex items-center gap-2">
+                                            <Target className="w-4 h-4 text-emerald-400" /> Goal KPIs
+                                        </h4>
+                                        <button
+                                            type="button"
+                                            onClick={() => setNewTask(prev => ({ ...prev, kpis: [...prev.kpis, { name: '', points: 5 }] }))}
+                                            className="text-[10px] bg-[var(--color-primary)]/20 text-[var(--color-primary)] px-2 py-1 rounded hover:bg-[var(--color-primary)]/30 transition-colors"
+                                        >
+                                            + Add KPI
+                                        </button>
+                                    </div>
+                                    <div className="space-y-3">
+                                        {newTask.kpis.map((kpi, idx) => (
+                                            <div key={idx} className="flex gap-3 items-center">
+                                                <input
+                                                    type="text"
+                                                    placeholder="KPI Name (e.g. Precision)"
+                                                    value={kpi.name}
+                                                    onChange={e => {
+                                                        const newKpis = [...newTask.kpis];
+                                                        newKpis[idx].name = e.target.value;
+                                                        setNewTask(prev => ({ ...prev, kpis: newKpis }));
+                                                    }}
+                                                    className="flex-[3] bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs focus:border-[var(--color-primary)] outline-none"
+                                                />
+                                                <div className="flex-[1] flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-2 py-1.5">
+                                                    <input
+                                                        type="number"
+                                                        value={kpi.points}
+                                                        onChange={e => {
+                                                            const newKpis = [...newTask.kpis];
+                                                            newKpis[idx].points = parseInt(e.target.value) || 0;
+                                                            setNewTask(prev => ({ ...prev, kpis: newKpis }));
+                                                        }}
+                                                        className="w-full bg-transparent text-xs text-center focus:outline-none"
+                                                    />
+                                                    <span className="text-[10px] text-gray-500 uppercase font-bold shrink-0">pts</span>
+                                                </div>
+                                                {newTask.status === 'Review' || newTask.status === 'Done' ? (
+                                                    <div className="flex items-center gap-2 ml-2 border-l border-white/10 pl-3">
+                                                        <span className="text-[10px] text-emerald-400">Score:</span>
+                                                        <input
+                                                            type="number"
+                                                            max={kpi.points}
+                                                            value={kpi.score ?? 0}
+                                                            onChange={e => {
+                                                                const newKpis = [...newTask.kpis];
+                                                                newKpis[idx].score = parseInt(e.target.value) || 0;
+                                                                setNewTask(prev => ({ ...prev, kpis: newKpis }));
+                                                            }}
+                                                            className="w-16 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-2 py-1.5 text-xs text-center text-emerald-400 focus:outline-none focus:border-emerald-500"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setNewTask(prev => ({ ...prev, kpis: prev.kpis.filter((_, i) => i !== idx) }))}
+                                                        className="text-gray-500 hover:text-red-400 p-1"
+                                                    >
+                                                        <Trash className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))}
+                                        {newTask.kpis.length === 0 && (
+                                            <p className="text-[10px] text-gray-500 italic text-center py-2">No KPIs defined for this task.</p>
+                                        )}
+                                    </div>
+
+                                    {(newTask.status === 'Review' || newTask.status === 'Done') && (
+                                        <div className="pt-2 border-t border-white/10">
+                                            <label className="text-[10px] uppercase font-bold text-gray-400 mb-1.5 block">Manager Feedback</label>
+                                            <textarea
+                                                rows={2}
+                                                value={newTask.managerFeedback}
+                                                onChange={e => setNewTask(prev => ({ ...prev, managerFeedback: e.target.value }))}
+                                                placeholder="Provide feedback to the employee..."
+                                                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs focus:border-[var(--color-primary)] outline-none transition-colors resize-none"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="pt-2">
                                     <button type="submit" className="w-full bg-gradient-to-r from-[var(--color-primary)] to-purple-600 hover:opacity-90 text-white py-2.5 rounded-lg font-bold transition-all shadow-lg shadow-[var(--color-primary)]/20">
