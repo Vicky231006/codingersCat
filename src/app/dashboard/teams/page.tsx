@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Mail, Phone, MoreVertical, Plus, Trash, Edit, X } from "lucide-react";
+import { Users, Mail, Phone, MoreVertical, Plus, Trash, Edit, X, ShieldCheck } from "lucide-react";
 import { useAppStore } from "@/store";
 
 export default function TeamsPage() {
@@ -145,6 +145,67 @@ export default function TeamsPage() {
                         </motion.div>
                     );
                 })}
+            </div>
+
+            {/* Departments Table for Governance */}
+            <div className="bg-[var(--color-card)] rounded-xl border border-[var(--color-border)] p-4 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-primary)]/5 blur-3xl rounded-full -mr-10 -mt-10" />
+                <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" /> Department Governance
+                </h3>
+                <div className="overflow-x_auto">
+                    <table className="w-full text-xs text-left">
+                        <thead className="text-gray-400 bg-white/5 uppercase font-bold tracking-wider">
+                            <tr>
+                                <th className="px-4 py-3 rounded-tl-lg">Department Name</th>
+                                <th className="px-4 py-3">Member Count</th>
+                                <th className="px-4 py-3">Manager</th>
+                                <th className="px-4 py-3 rounded-tr-lg text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                            {activeDepts.map(dept => {
+                                const deptEmps = activeEmps.filter(e => e.departmentId === dept.id);
+                                const manager = activeEmps.find(e => e.id === dept.managerId);
+                                return (
+                                    <tr key={dept.id} className="hover:bg-white/5 transition-colors group">
+                                        <td className="px-4 py-3 font-semibold text-white group-hover:text-[var(--color-primary)] transition-colors">
+                                            {dept.name}
+                                        </td>
+                                        <td className="px-4 py-3 text-gray-400">
+                                            <span className="bg-white/5 px-2 py-0.5 rounded border border-white/5">{deptEmps.length} members</span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {manager ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-[8px] font-bold text-blue-400">
+                                                        {manager.name.substring(0, 2).toUpperCase()}
+                                                    </div>
+                                                    <span className="text-gray-300">{manager.name}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-600 italic">No Manager</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => { setDeptForm({ ...dept, managerId: dept.managerId || '' }); setModals({ ...modals, dept: true }) }} className="p-1 hover:text-white"><Edit className="w-3.5 h-3.5" /></button>
+                                                <button onClick={() => setDeleteConfirm({ id: dept.id, type: 'dept' })} className="p-1 text-red-500 hover:text-red-400"><Trash className="w-3.5 h-3.5" /></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            {activeDepts.length === 0 && (
+                                <tr>
+                                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500 italic">
+                                        No departments defined for this workspace.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* List All Employees simply */}

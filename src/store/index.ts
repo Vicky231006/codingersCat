@@ -130,6 +130,7 @@ export interface AppState {
 
     logAction: (workspaceId: string, action: string) => void;
     bulkIngestWorkspaceData: (workspaceId: string, data: NormalizedWorkspaceData) => void;
+    bulkAddDepartments: (workspaceId: string, depts: Array<{ name: string }>) => void;
     fetchSupabaseTasks: (workspaceId: string) => Promise<void>;
 }
 
@@ -342,10 +343,11 @@ export const useAppStore = create<AppState>()(
                 }
             },
 
-            bulkIngestWorkspaceData: (workspaceId, data) => set((state) => {
-                // Remove existing data for this workspace
-                const keepEmployees = state.employees.filter(e => e.workspaceId !== workspaceId);
-                const keepDepartments = state.departments.filter(d => d.workspaceId !== workspaceId);
+            bulkIngestWorkspaceData: (workspaceId: string, data: NormalizedWorkspaceData) => set((state) => {
+                // We no longer wipe departments and employees as they might have been added manually
+                // instead we only wipe projects and tasks to ensure the new ingestion is clean for those
+                const keepEmployees = state.employees;
+                const keepDepartments = state.departments;
                 const keepProjects = state.projects.filter(p => p.workspaceId !== workspaceId);
                 const oldProjectIds = state.projects.filter(p => p.workspaceId === workspaceId).map(p => p.id);
                 const keepTasks = state.tasks.filter(t => !oldProjectIds.includes(t.projectId));
@@ -431,6 +433,12 @@ export const useAppStore = create<AppState>()(
                     ].slice(0, 100),
                 };
             }),
+            bulkAddDepartments: (workspaceId: string, depts: Array<{ name: string }>) => set((state) => ({
+                departments: [
+                    ...state.departments,
+                    ...depts.map(d => ({ id: uuidv4(), workspaceId, name: d.name, managerId: null }))
+                ]
+            })),
         }),
         {
             name: 'unify-app-storage',

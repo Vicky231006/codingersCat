@@ -65,7 +65,7 @@ export function Onboarding() {
     const [processResult, setProcessResult] = useState<"success" | "error" | "dummy" | null>(null);
 
     const { setWorkspaceData: setWorkspaceProviderData, setUserRole: setWsProviderUserRole } = useWorkspace();
-    const { addWorkspace, bulkIngestWorkspaceData, setActiveWorkspaceId } = useAppStore();
+    const { addWorkspace, bulkAddDepartments, addEmployee, bulkIngestWorkspaceData, setActiveWorkspaceId } = useAppStore();
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -179,6 +179,23 @@ export function Onboarding() {
             return;
         }
         const wsId = latestWs.id;
+
+        // 1.1 Persist Manual Departments
+        if (departments.length > 0 && departments[0].name.trim()) {
+            bulkAddDepartments(wsId, departments.map(d => ({ name: d.name })));
+        }
+
+        // 1.2 Create Creator Employee record
+        addEmployee({
+            workspaceId: wsId,
+            name: onboardingRole === 'CEO' ? "System Admin" : "Workspace Creator", // Fallback names if needed
+            role: onboardingRole,
+            departmentId: null,
+            teamId: null,
+            isActive: true,
+            capacity: 40,
+            joinedDate: new Date().toISOString()
+        });
 
         // 2. Process CSVs
         if (csvFiles.length === 0) {
